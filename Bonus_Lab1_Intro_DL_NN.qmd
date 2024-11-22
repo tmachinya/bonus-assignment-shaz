@@ -20,6 +20,7 @@ install.packages("gutenbergr")
 install.packages("keras")
 library(keras)
 ```
+
 # Exercise 1: Building a Simple Neural Network in R (Keras)
 
 ```{r}
@@ -43,8 +44,11 @@ model %>% compile(
 # Then look at the model, and its three layers
 model
 ```
+
 # Exercise 2: Building an Intuitive Neural Network in R (Keras)
+
 ## building an intuitive neural network
+
 ```{r}
 library(keras)
 library(tidyverse)
@@ -86,7 +90,8 @@ ggplot(df, aes(x=x, y=y, color=factor(label))) +
   labs(title="Training Data for Neural Network",
        color="Class")
 ```
-# # Creating and compiling model
+
+# \# Creating and compiling model
 
 ```{r}
 
@@ -115,6 +120,7 @@ history <- model %>% fit(
 ```
 
 # Visualising boundaries
+
 ```{r}
 # Visualize decision boundaries
 create_decision_boundary <- function(model, df) {
@@ -142,8 +148,11 @@ create_decision_boundary <- function(model, df) {
 # Visualize the decision boundary
 create_decision_boundary(model, df)
 ```
+
 # Exercise 3: Building a Practical Application of a Neural Network in R (Keras)
+
 ## practical application of a neural network
+
 ```{r}
 # Load MNIST dataset
 mnist <- dataset_mnist()
@@ -162,16 +171,11 @@ model <- keras_model_sequential() %>%
 
 model
 ```
+
 # Exercise 4: Building and Visualizing a Simple Neural Network in R (Keras)
+
 ## simple neural network in Python
 
-```{py}
+```{r}
 
 ```
-
-
-
-
-
-
-
