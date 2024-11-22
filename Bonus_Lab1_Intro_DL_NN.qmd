@@ -1,0 +1,177 @@
+---
+title: "Bonus_Lab1_Intro_DL_NN"
+author: "Sharon Paruwani"
+date: "11/20/2024"
+format: pdf
+editor: visual
+---
+
+```{r}
+install.packages("tidyverse")
+install.packages("quanteda")
+install.packages("readtext")
+install.packages("stm")
+install.packages("stminsights")
+install.packages("wordcloud")
+install.packages("gsl")
+install.packages("topicmodels")
+install.packages("caret")
+install.packages("gutenbergr")
+install.packages("keras")
+library(keras)
+```
+# Exercise 1: Building a Simple Neural Network in R (Keras)
+
+```{r}
+library(keras)
+library(tidyverse)
+```
+
+```{r}
+# Create a simple sequential model
+model <- keras_model_sequential() %>%
+  layer_dense(units = 64, activation = 'relu', input_shape = c(10)) %>%
+  layer_dense(units = 32, activation = 'relu') %>%
+  layer_dense(units = 1, activation = 'sigmoid')
+
+# Compile the model
+model %>% compile(
+  optimizer = 'adam',
+  loss = 'binary_crossentropy',
+  metrics = c('accuracy')
+)
+# Then look at the model, and its three layers
+model
+```
+# Exercise 2: Building an Intuitive Neural Network in R (Keras)
+## building an intuitive neural network
+```{r}
+library(keras)
+library(tidyverse)
+library(ggplot2)
+
+# Create synthetic dataset
+set.seed(123)
+n_points <- 1000
+
+# Generate two circular clusters
+create_circular_data <- function(n_points) {
+  # Create cluster 1
+  theta1 <- runif(n_points/2, 0, 2*pi)
+  r1 <- rnorm(n_points/2, mean=2, sd=0.2)
+  x1 <- r1 * cos(theta1)
+  y1 <- r1 * sin(theta1)
+  
+  # Create cluster 2
+  theta2 <- runif(n_points/2, 0, 2*pi)
+  r2 <- rnorm(n_points/2, mean=4, sd=0.2)
+  x2 <- r2 * cos(theta2)
+  y2 <- r2 * sin(theta2)
+  
+  # Combine data
+  data.frame(
+    x = c(x1, x2),
+    y = c(y1, y2),
+    label = c(rep(0, n_points/2), rep(1, n_points/2))
+  )
+}
+
+# Generate and visualize data
+df <- create_circular_data(n_points)
+
+# Visualize the data
+ggplot(df, aes(x=x, y=y, color=factor(label))) +
+  geom_point(alpha=0.6) +
+  theme_minimal() +
+  labs(title="Training Data for Neural Network",
+       color="Class")
+```
+# # Creating and compiling model
+
+```{r}
+
+model <- keras_model_sequential() %>%
+  layer_dense(units=8, activation='relu', input_shape=c(2)) %>%
+  layer_dense(units=4, activation='relu') %>%
+  layer_dense(units=1, activation='sigmoid')
+
+model %>% compile(
+  optimizer = 'adam',
+  loss = 'binary_crossentropy',
+  metrics = c('accuracy')
+)
+
+# Prepare data for training
+x_train <- as.matrix(df[, c("x", "y")])
+y_train <- df$label
+
+# Train model
+history <- model %>% fit(
+  x_train, y_train,
+  epochs = 20,
+  validation_split = 0.2,
+  verbose = 1
+)
+```
+
+# Visualising boundaries
+```{r}
+# Visualize decision boundaries
+create_decision_boundary <- function(model, df) {
+  # Create grid of points
+  x_range <- seq(min(df$x) - 1, max(df$x) + 1, length.out = 100)
+  y_range <- seq(min(df$y) - 1, max(df$y) + 1, length.out = 100)
+  grid <- expand.grid(x = x_range, y = y_range)
+  
+  # Get predictions
+  predictions <- predict(model, as.matrix(grid))
+  
+  # Create visualization
+  grid$pred <- as.vector(predictions)
+  
+  ggplot() +
+    geom_raster(data=grid, aes(x=x, y=y, fill=pred), alpha=0.3) +
+    geom_point(data=df, aes(x=x, y=y, color=factor(label))) +
+    scale_fill_gradient(low="blue", high="red") +
+    theme_minimal() +
+    labs(title="Neural Network Decision Boundary",
+         fill="Prediction Probability",
+         color="Actual Class")
+}
+
+# Visualize the decision boundary
+create_decision_boundary(model, df)
+```
+# Exercise 3: Building a Practical Application of a Neural Network in R (Keras)
+## practical application of a neural network
+```{r}
+# Load MNIST dataset
+mnist <- dataset_mnist()
+x_train <- mnist$train$x
+y_train <- mnist$train$y
+
+# Preprocess data
+x_train <- array_reshape(x_train, c(nrow(x_train), 784))
+x_train <- x_train / 255
+
+# Create model
+model <- keras_model_sequential() %>%
+  layer_dense(units = 128, activation = 'relu', input_shape = c(784)) %>%
+  layer_dropout(0.3) %>%
+  layer_dense(units = 10, activation = 'softmax')
+
+model
+```
+# Exercise 4: Building and Visualizing a Simple Neural Network in R (Keras)
+## simple neural network in Python
+
+```{py}
+
+```
+
+
+
+
+
+
+
