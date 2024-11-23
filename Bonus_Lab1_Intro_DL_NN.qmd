@@ -6,21 +6,12 @@ format: pdf
 editor: visual
 ---
 
-```{r}
-install.packages("tidyverse")
-install.packages("quanteda")
-install.packages("readtext")
-install.packages("stm")
-install.packages("stminsights")
-install.packages("wordcloud")
-install.packages("gsl")
-install.packages("topicmodels")
-install.packages("caret")
-install.packages("gutenbergr")
-install.packages("keras")
-library(keras)
-```
 
+```{r}
+library(reticulate)
+use_condaenv("r-tensorflow", required = TRUE)
+
+```
 # Exercise 1: Building a Simple Neural Network in R (Keras)
 
 ```{r}
@@ -28,25 +19,25 @@ library(keras)
 library(tidyverse)
 ```
 
+
 ```{r}
 # Create a simple sequential model
+library(tensorflow)
+use_condaenv("r-tensorflow", required = TRUE)
 model <- keras_model_sequential() %>%
   layer_dense(units = 64, activation = 'relu', input_shape = c(10)) %>%
   layer_dense(units = 32, activation = 'relu') %>%
   layer_dense(units = 1, activation = 'sigmoid')
 
-# Compile the model
 model %>% compile(
   optimizer = 'adam',
   loss = 'binary_crossentropy',
   metrics = c('accuracy')
 )
-# Then look at the model, and its three layers
-model
+
+summary(model)
 ```
-
 # Exercise 2: Building an Intuitive Neural Network in R (Keras)
-
 ## building an intuitive neural network
 
 ```{r}
@@ -91,10 +82,8 @@ ggplot(df, aes(x=x, y=y, color=factor(label))) +
        color="Class")
 ```
 
-# \# Creating and compiling model
-
 ```{r}
-
+# Create and compile model
 model <- keras_model_sequential() %>%
   layer_dense(units=8, activation='relu', input_shape=c(2)) %>%
   layer_dense(units=4, activation='relu') %>%
@@ -118,8 +107,6 @@ history <- model %>% fit(
   verbose = 1
 )
 ```
-
-# Visualising boundaries
 
 ```{r}
 # Visualize decision boundaries
@@ -150,8 +137,7 @@ create_decision_boundary(model, df)
 ```
 
 # Exercise 3: Building a Practical Application of a Neural Network in R (Keras)
-
-## practical application of a neural network
+## practical application of a neural network in R
 
 ```{r}
 # Load MNIST dataset
@@ -171,11 +157,8 @@ model <- keras_model_sequential() %>%
 
 model
 ```
-
 # Exercise 4: Building and Visualizing a Simple Neural Network in R (Keras)
-
-## simple neural network in Python
-
+##  simple neural network in Python
 ```{python}
 import tensorflow as tf
 from tensorflow.keras import layers, models
@@ -193,5 +176,54 @@ model.compile(
     loss='binary_crossentropy',
     metrics=['accuracy']
 )
-
 ```
+
+# Exercise 5: Building and Visualizing an Intuitive Neural Network in Python
+## building an intuitive neural network
+
+```{python}
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Create synthetic dataset
+np.random.seed(123)
+n_points = 1000
+
+def create_circular_data(n_points):
+    # Create cluster 1
+    theta1 = np.random.uniform(0, 2*np.pi, n_points//2)
+    r1 = np.random.normal(2, 0.2, n_points//2)
+    x1 = r1 * np.cos(theta1)
+    y1 = r1 * np.sin(theta1)
+    
+    # Create cluster 2
+    theta2 = np.random.uniform(0, 2*np.pi, n_points//2)
+    r2 = np.random.normal(4, 0.2, n_points//2)
+    x2 = r2 * np.cos(theta2)
+    y2 = r2 * np.sin(theta2)
+    
+    X = np.vstack([np.column_stack((x1, y1)), 
+                  np.column_stack((x2, y2))])
+    y = np.hstack([np.zeros(n_points//2), 
+                  np.ones(n_points//2)])
+    
+    return X, y
+
+# Generate data
+X, y = create_circular_data(n_points)
+
+# Visualize data
+plt.figure(figsize=(10, 8))
+plt.scatter(X[y==0, 0], X[y==0, 1], label='Class 0', alpha=0.6)
+plt.scatter(X[y==1, 0], X[y==1, 1], label='Class 1', alpha=0.6)
+plt.title('Training Data for Neural Network')
+plt.legend()
+plt.show()
+```
+
+
+
+
