@@ -1,5 +1,5 @@
 ---
-title: "Bonus_Lab1_Intro_DL_NN"
+title: "Bonus_Lab2_Intro_DL_NN"
 author: "Sharon Paruwani"
 date: "11/20/2024"
 format: pdf
@@ -7,175 +7,461 @@ editor: visual
 ---
 
 ```{r}
-install.packages("tidyverse")
-install.packages("quanteda")
-install.packages("readtext")
-install.packages("stm")
-install.packages("stminsights")
-install.packages("wordcloud")
-install.packages("gsl")
-install.packages("topicmodels")
-install.packages("caret")
-install.packages("gutenbergr")
-install.packages("keras")
-library(keras)
+library(reticulate)
+use_condaenv("r-tensorflow", required = TRUE)
 ```
 
-# Exercise 1: Building a Simple Neural Network in R (Keras)
+#3.1 Exercise 1: Building a CNN Image Classier with Fashion MNIST Data
 
 ```{r}
 library(keras)
 library(tidyverse)
+library(gridExtra)
+library(reshape2)
+
 ```
 
 ```{r}
-# Create a simple sequential model
-model <- keras_model_sequential() %>%
-  layer_dense(units = 64, activation = 'relu', input_shape = c(10)) %>%
-  layer_dense(units = 32, activation = 'relu') %>%
-  layer_dense(units = 1, activation = 'sigmoid')
+# Load Fashion MNIST dataset
+fashion_mnist <- dataset_fashion_mnist()
+x_train <- fashion_mnist$train$x
+y_train <- fashion_mnist$train$y
+x_test <- fashion_mnist$test$x
+y_test <- fashion_mnist$test$y
 
-# Compile the model
-model %>% compile(
-  optimizer = 'adam',
-  loss = 'binary_crossentropy',
-  metrics = c('accuracy')
-)
-# Then look at the model, and its three layers
-model
-```
-
-# Exercise 2: Building an Intuitive Neural Network in R (Keras)
-
-## building an intuitive neural network
-
-```{r}
-library(keras)
-library(tidyverse)
-library(ggplot2)
-
-# Create synthetic dataset
-set.seed(123)
-n_points <- 1000
-
-# Generate two circular clusters
-create_circular_data <- function(n_points) {
-  # Create cluster 1
-  theta1 <- runif(n_points/2, 0, 2*pi)
-  r1 <- rnorm(n_points/2, mean=2, sd=0.2)
-  x1 <- r1 * cos(theta1)
-  y1 <- r1 * sin(theta1)
-  
-  # Create cluster 2
-  theta2 <- runif(n_points/2, 0, 2*pi)
-  r2 <- rnorm(n_points/2, mean=4, sd=0.2)
-  x2 <- r2 * cos(theta2)
-  y2 <- r2 * sin(theta2)
-  
-  # Combine data
-  data.frame(
-    x = c(x1, x2),
-    y = c(y1, y2),
-    label = c(rep(0, n_points/2), rep(1, n_points/2))
-  )
-}
-
-# Generate and visualize data
-df <- create_circular_data(n_points)
-
-# Visualize the data
-ggplot(df, aes(x=x, y=y, color=factor(label))) +
-  geom_point(alpha=0.6) +
-  theme_minimal() +
-  labs(title="Training Data for Neural Network",
-       color="Class")
-```
-
-# \# Creating and compiling model
-
-```{r}
-
-model <- keras_model_sequential() %>%
-  layer_dense(units=8, activation='relu', input_shape=c(2)) %>%
-  layer_dense(units=4, activation='relu') %>%
-  layer_dense(units=1, activation='sigmoid')
-
-model %>% compile(
-  optimizer = 'adam',
-  loss = 'binary_crossentropy',
-  metrics = c('accuracy')
+# Define class labels
+fashion_labels <- c(
+  "T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
+  "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot"
 )
 
-# Prepare data for training
-x_train <- as.matrix(df[, c("x", "y")])
-y_train <- df$label
-
-# Train model
-history <- model %>% fit(
-  x_train, y_train,
-  epochs = 20,
-  validation_split = 0.2,
-  verbose = 1
-)
-```
-
-# Visualising boundaries
-
-```{r}
-# Visualize decision boundaries
-create_decision_boundary <- function(model, df) {
-  # Create grid of points
-  x_range <- seq(min(df$x) - 1, max(df$x) + 1, length.out = 100)
-  y_range <- seq(min(df$y) - 1, max(df$y) + 1, length.out = 100)
-  grid <- expand.grid(x = x_range, y = y_range)
-  
-  # Get predictions
-  predictions <- predict(model, as.matrix(grid))
-  
-  # Create visualization
-  grid$pred <- as.vector(predictions)
-  
-  ggplot() +
-    geom_raster(data=grid, aes(x=x, y=y, fill=pred), alpha=0.3) +
-    geom_point(data=df, aes(x=x, y=y, color=factor(label))) +
-    scale_fill_gradient(low="blue", high="red") +
+# Explore data distribution
+plot_fashion_distribution <- function(y_train, labels) {
+  tibble(
+    class = factor(y_train, labels = labels),
+    count = 1
+  ) %>%
+    count(class) %>%
+    ggplot(aes(x = reorder(class, n), y = n)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
     theme_minimal() +
-    labs(title="Neural Network Decision Boundary",
-         fill="Prediction Probability",
-         color="Actual Class")
+    labs(
+      title = "Distribution of Fashion MNIST Classes",
+      x = "Class",
+      y = "Count"
+    )
 }
 
-# Visualize the decision boundary
-create_decision_boundary(model, df)
+# Visualize sample images with labels
+plot_fashion_samples <- function(x_train, y_train, labels, samples_per_class = 5) {
+  par(mfrow = c(length(unique(y_train)), samples_per_class),
+      mar = c(0.5, 0.5, 1.5, 0.5))
+  for (class in 0:9) {
+    class_indices <- which(y_train == class)[1:samples_per_class]
+    for (idx in class_indices) {
+      image(t(x_train[idx, , ]),
+            col = gray.colors(256),
+            axes = FALSE,
+            main = labels[class + 1])
+    }
+  }
+}
+
+# Plot pixel distribution
+plot_pixel_distribution <- function(x_train) {
+  # Check dimensions
+  dims <- dim(x_train)
+  if (length(dims) == 4) {
+    # If 4D array, remove the channel dimension
+    sample_images <- x_train[1:1000, , , 1]
+  } else if (length(dims) == 3) {
+    # If 3D array, take as is
+    sample_images <- x_train[1:1000, , ]
+  } else {
+    stop("Input must be 3D or 4D array")
+  }
+  # Convert to vector
+  pixel_values <- as.vector(sample_images)
+  # Create plot
+  ggplot(data.frame(pixel = pixel_values), aes(x = pixel)) +
+    geom_histogram(bins = 50, fill = "steelblue") +
+    theme_minimal() +
+    labs(
+      title = "Distribution of Pixel Intensities",
+      x = "Pixel Value",
+      y = "Count"
+    )
+}
+
+# Test the functions
+# Plot the distribution of classes
+plot_fashion_distribution(y_train, fashion_labels)
+
+# Plot sample images with labels
+plot_fashion_samples(x_train, y_train, fashion_labels)
+
+# Plot pixel intensity distribution
+plot_pixel_distribution(x_train)
+
+
+
 ```
 
-# Exercise 3: Building a Practical Application of a Neural Network in R (Keras)
-
-## practical application of a neural network
+#Looking at CNN Architecture and Feature Maps
 
 ```{r}
-# Load MNIST dataset
-mnist <- dataset_mnist()
-x_train <- mnist$train$x
-y_train <- mnist$train$y
+# Define the model
+build_model <- function() {
+  model <- keras_model_sequential() %>%
+    # Convolutional and pooling layers
+    layer_conv_2d(filters = 32, kernel_size = c(3, 3), activation = "relu", name = "conv1", input_shape = c(28, 28, 1)) %>%
+    layer_max_pooling_2d(pool_size = c(2, 2), name = "pool1") %>%
+    layer_conv_2d(filters = 64, kernel_size = c(3, 3), activation = "relu", name = "conv2") %>%
+    layer_max_pooling_2d(pool_size = c(2, 2), name = "pool2") %>%
+    # Dense layers
+    layer_flatten(name = "flatten") %>%
+    layer_dense(units = 128, activation = "relu", name = "dense1") %>%
+    layer_dropout(rate = 0.5, name = "dropout") %>%
+    layer_dense(units = 10, activation = "softmax", name = "output")
+  return(model)
+}
 
-# Preprocess data
-x_train <- array_reshape(x_train, c(nrow(x_train), 784))
-x_train <- x_train / 255
+# Function to visualize feature maps
+visualize_feature_maps <- function(model, image) {
+  # Create model that outputs feature maps
+  layer_outputs <- lapply(1:length(model$layers), function(i) model$layers[[i]]$output)
+  activation_model <- keras_model(inputs = model$input, outputs = layer_outputs)
+  
+  # Get activations
+  activations <- activation_model %>% predict(image)
+  
+  # Find convolutional layers
+  conv_layers <- which(sapply(model$layers, function(x) inherits(x, "keras.layers.convolutional.Conv2D")))
+  
+  # Visualize feature maps for each convolutional layer
+  for (i in seq_along(conv_layers)) {
+    layer_name <- model$layers[[conv_layers[i]]]$name
+    n_features <- dim(activations[[conv_layers[i]]])[4]
+    
+    # Plot first 16 feature maps (or all if less than 16)
+    n_cols <- min(4, n_features)
+    n_rows <- ceiling(n_features / n_cols)
+    par(mfrow = c(n_rows, n_cols), mar = c(0.5, 0.5, 2, 0.5))
+    
+    for (j in 1:min(16, n_features)) {
+      feature_map <- activations[[conv_layers[i]]][1, , , j]
+      image(t(feature_map), main = paste(layer_name, "- Filter", j),
+            col = viridis::viridis(100), axes = FALSE)
+    }
+  }
+}
 
-# Create model
-model <- keras_model_sequential() %>%
-  layer_dense(units = 128, activation = 'relu', input_shape = c(784)) %>%
-  layer_dropout(0.3) %>%
-  layer_dense(units = 10, activation = 'softmax')
-
-model
 ```
 
-# Exercise 4: Building and Visualizing a Simple Neural Network in R (Keras)
+#Looking at LSTM for Text Classification
 
-## simple neural network in Python
+```{r}
+# Load IMDB dataset with preprocessing
+max_features <- 10000
+max_len <- 500
+imdb <- dataset_imdb(num_words = max_features)
 
-```{py}
+# Explore text data
+analyze_text_lengths <- function(sequences) {
+  lengths <- sapply(sequences, length)
+  ggplot(data.frame(length = lengths), aes(x = length)) +
+    geom_histogram(bins = 50, fill = "steelblue") +
+    theme_minimal() +
+    labs(
+      title = "Distribution of Review Lengths",
+      x = "Length (words)",
+      y = "Count"
+    )
+}
+
+# Visualize word frequency
+plot_word_frequency <- function(sequences, word_index, top_n = 20) {
+  # Count word frequencies
+  word_counts <- table(unlist(sequences))
+  # Get word labels
+  reverse_word_index <- names(word_index)[1:length(word_index)]
+  # Create frequency dataframe
+  freq_df <- data.frame(
+    word = reverse_word_index[as.numeric(names(word_counts))],
+    count = as.numeric(word_counts)
+  ) %>%
+    arrange(desc(count)) %>%
+    head(top_n)
+  ggplot(freq_df, aes(x = reorder(word, count), y = count)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    coord_flip() +
+    theme_minimal() +
+    labs(
+      title = "Top Word Frequencies",
+      x = "Word",
+      y = "Frequency"
+    )
+}
+
+# Show text length distribution
+analyze_text_lengths(imdb$train$x)
+
+
+```
+
+# Show word frequencies
+
+```{r}
+plot_word_frequency(imdb$train$x, dataset_imdb_word_index())
+```
+
+# Create and visualize LSTM model
+
+```{r}
+create_lstm_model <- function(max_features, max_len) {
+  model <- keras_model_sequential()
+  model %>%
+    layer_embedding(
+      input_dim = max_features,
+      output_dim = 128,
+      input_length = max_len,
+      name = "embedding"
+    ) %>%
+    layer_lstm(
+      units = 64,
+      return_sequences = TRUE,
+      name = "lstm1"
+    ) %>%
+    layer_lstm(
+      units = 32,
+      name = "lstm2"
+    ) %>%
+    layer_dense(
+      units = 1,
+      activation = "sigmoid",
+      name = "output"
+    )
+  return(model)
+}
+
+```
+
+#Comparing
+
+```{r}
+compare_architectures <- function(cnn_model, lstm_model) {
+  # Extract layer information
+  get_layer_info <- function(model) {
+    tibble(
+      layer = sapply(model$layers, function(x) x$name),
+      type = sapply(model$layers, function(x) class(x)[1]),
+      parameters = sapply(model$layers, function(x) x$count_params())
+    )
+  }
+  cnn_info <- get_layer_info(cnn_model)
+  lstm_info <- get_layer_info(lstm_model)
+  
+  # Plot comparisons
+  p1 <- ggplot(cnn_info, aes(x = layer, y = parameters)) +
+    geom_bar(stat = "identity", fill = "steelblue") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "CNN Architecture", x = "Layer", y = "Parameters")
+  
+  p2 <- ggplot(lstm_info, aes(x = layer, y = parameters)) +
+    geom_bar(stat = "identity", fill = "coral") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "LSTM Architecture", x = "Layer", y = "Parameters")
+  
+  grid.arrange(p1, p2, ncol = 2)
+}
+
+# Compare training metrics
+compare_training_histories <- function(cnn_history, lstm_history) {
+  # Combine histories
+  cnn_df <- data.frame(
+    epoch = 1:length(cnn_history$metrics$accuracy),
+    accuracy = cnn_history$metrics$accuracy,
+    model = "CNN"
+  )
+  
+  lstm_df <- data.frame(
+    epoch = 1:length(lstm_history$metrics$accuracy),
+    accuracy = lstm_history$metrics$accuracy,
+    model = "LSTM"
+  )
+  
+  combined_df <- rbind(cnn_df, lstm_df)
+  
+  ggplot(combined_df, aes(x = epoch, y = accuracy, color = model)) +
+    geom_line() +
+    theme_minimal() +
+    labs(title = "Training Progress Comparison", x = "Epoch", y = "Accuracy")
+}
+
+```
+
+#Looking at buiding an image classifer in Python using the Fashion MNIST dataset.
+
+```{python}
+import tensorflow as tf
+from tensorflow import keras
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+# Load Fashion MNIST dataset
+(x_train, y_train), (x_test, y_test) = keras.datasets.fashion_mnist.load_data()
+
+# Class labels
+fashion_labels = [
+    'T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
+    'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot'
+]
+
+# Data visualization functions
+def plot_fashion_distribution(y_train, labels):
+    plt.figure(figsize=(10, 6))
+    sns.countplot(y=pd.Series(y_train).map(lambda x: labels[x]))
+    plt.title('Distribution of Fashion MNIST Classes')
+    plt.xlabel('Class')
+    plt.ylabel('Count')
+    plt.tight_layout()
+    plt.show()
+
+def plot_fashion_samples(x_train, y_train, labels, samples_per_class=5):
+    fig, axes = plt.subplots(len(labels), samples_per_class, figsize=(samples_per_class * 2, len(labels) * 2))
+    for i, label in enumerate(range(len(labels))):
+        indices = np.where(y_train == label)[0][:samples_per_class]
+        for j, idx in enumerate(indices):
+            axes[i, j].imshow(x_train[idx], cmap='gray')
+            axes[i, j].axis('off')
+            if j == 0:
+                axes[i, j].set_ylabel(labels[label], rotation=0, labelpad=30, va='center')
+    plt.tight_layout()
+    plt.show()
+
+# Create CNN model
+def create_cnn_model(input_shape=(28, 28, 1)):
+    model = keras.Sequential([
+        keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=input_shape, name='conv1'),
+        keras.layers.MaxPooling2D((2, 2), name='pool1'),
+        keras.layers.Conv2D(64, (3, 3), activation='relu', name='conv2'),
+        keras.layers.MaxPooling2D((2, 2), name='pool2'),
+        keras.layers.Flatten(name='flatten'),
+        keras.layers.Dense(128, activation='relu', name='dense1'),
+        keras.layers.Dropout(0.5, name='dropout'),
+        keras.layers.Dense(10, activation='softmax', name='output')
+    ])
+    return model
+
+# Visualize feature maps
+def visualize_feature_maps(model, image):
+    # Create a model that will output feature maps
+    layer_outputs = [layer.output for layer in model.layers if isinstance(layer, keras.layers.Conv2D)]
+    activation_model = keras.Model(inputs=model.input, outputs=layer_outputs)
+
+    # Get feature maps
+    activations = activation_model.predict(np.expand_dims(image, 0))
+
+    # Plot feature maps
+    for i, activation in enumerate(activations):
+        n_features = activation.shape[-1]
+        size = activation.shape[1]
+        n_cols = min(n_features, 8)
+        n_rows = (n_features + n_cols - 1) // n_cols  # Ensure enough rows for all features
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 2, n_rows * 2))
+        for j in range(n_features):
+            row, col = divmod(j, n_cols)
+            ax = axes[row, col] if n_rows > 1 else axes[col]
+            ax.imshow(activation[0, :, :, j], cmap='viridis')
+            ax.axis('off')
+        plt.suptitle(f'Feature maps for layer {model.layers[i * 2].name}')
+        plt.tight_layout()
+        plt.show()
+
+```
+
+# Using LSTM for Text Classification in Python
+
+```{python}
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+# Load IMDB dataset
+max_features = 10000
+max_len = 500
+(x_train, y_train), (x_test, y_test) = keras.datasets.imdb.load_data(num_words=max_features)
+
+# Text analysis functions
+def analyze_text_lengths(sequences):
+    lengths = [len(seq) for seq in sequences]
+    plt.figure(figsize=(10, 6))
+    plt.hist(lengths, bins=50, color="steelblue")
+    plt.title('Distribution of Review Lengths')
+    plt.xlabel('Length (words)')
+    plt.ylabel('Count')
+    plt.show()
+
+def plot_word_frequency(sequences, word_index, top_n=20):
+    # Count word frequencies
+    word_freq = {}
+    for seq in sequences:
+        for word_id in seq:
+            if word_id not in word_freq:
+                word_freq[word_id] = 0
+            word_freq[word_id] += 1
+    
+    # Sort and plot
+    word_freq_sorted = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
+    words = [list(word_index.keys())[list(word_index.values()).index(id)] 
+             for id, _ in word_freq_sorted[:top_n]]
+    freqs = [freq for _, freq in word_freq_sorted[:top_n]]
+    plt.figure(figsize=(12, 6))
+    sns.barplot(x=freqs, y=words, palette="viridis")
+    plt.title('Top Word Frequencies')
+    plt.xlabel('Frequency')
+    plt.show()
+
+# Create LSTM model
+def create_lstm_model(max_features, max_len):
+    model = keras.Sequential([
+        keras.layers.Embedding(max_features, 128, input_length=max_len, name='embedding'),
+        keras.layers.LSTM(64, return_sequences=True, name='lstm1'),
+        keras.layers.LSTM(32, name='lstm2'),
+        keras.layers.Dense(1, activation='sigmoid', name='output')
+    ])
+    return model
+
+# Architecture comparison visualization
+def compare_architectures(cnn_model, lstm_model):
+    def get_model_info(model):
+        return pd.DataFrame({
+            'layer': [layer.name for layer in model.layers],
+            'parameters': [layer.count_params() for layer in model.layers]
+        })
+    
+    cnn_info = get_model_info(cnn_model)
+    lstm_info = get_model_info(lstm_model)
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    sns.barplot(data=cnn_info, x='layer', y='parameters', ax=ax1, color="steelblue")
+    ax1.set_title('CNN Architecture')
+    ax1.tick_params(axis='x', rotation=45)
+    
+    sns.barplot(data=lstm_info, x='layer', y='parameters', ax=ax2, color="coral")
+    ax2.set_title('LSTM Architecture')
+    ax2.tick_params(axis='x', rotation=45)
+    
+    plt.tight_layout()
+    plt.show()
 
 ```
